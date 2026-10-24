@@ -138,6 +138,7 @@ main .col{display:grid;gap:14px;padding-block:16px 40px}
 .brand h1{flex:1;min-width:0}
 .admin{flex:0 0 auto;border:1px dashed var(--bus);color:var(--bus);background:transparent;border-radius:999px;padding:3px 12px;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .admin[aria-pressed="true"]{background:var(--bus);border-color:var(--bus);color:var(--card);border-style:solid}
+.linkbtn{background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
 .adminbar{border:1px dashed var(--bus);color:var(--bus);background:var(--bus-bg);border-radius:10px;padding:8px 12px;font-size:13px}
 .copyline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .mono{font-family:var(--mono);font-size:14px}
@@ -308,13 +309,14 @@ function render(){
   var html=header();
   html+='<main class="gut"><div class="col">';
   if(st.notice)html+='<div class="adminbar" role="status">'+esc(st.notice)+'</div>';
-  if((ENC?st.isAdmin:(st.canWrite||standalone()))&&st.admin)html+='<div class="adminbar">'+(standalone()?'Admin mode: edit days, contacts and notes. Saving downloads an updated index.html to upload to your web host.':'Admin mode: you can edit days, contacts and notes. Changes are visible to everyone after saving.')+'</div>';
+  if((ENC?st.isAdmin:(st.canWrite||standalone()))&&st.admin)html+='<div class="adminbar">'+(standalone()?(ghToken()?'Admin mode: Save publishes straight to the website. ':'Admin mode: Save downloads an updated index.html. Connect the website to publish with one click. ')+'<button type="button" class="linkbtn" data-act="gh-open">Website settings</button>':'Admin mode: you can edit days, contacts and notes. Changes are visible to everyone after saving.')+'</div>';
   if(!data.days.length&&st.view!=='contacts')html+=emptyTour();
   else if(st.view==='route')html+=routeView();
   else if(st.view==='contacts')html+=contactsView();
   else html+=dayView(dayBy(st.date));
   html+='</div></main>';
   if(st.edit)html+=editor();
+  if(st.ghSettings)html+=ghSettingsView();
   if(st.adminLogin)html+='<div class="sheet gut" role="dialog" aria-modal="true" aria-label="Admin sign in"><div class="col login"><form class="card" id="adminform">'+
     '<h2 class="login-h">Admin</h2><p class="desc">Sign in as admin to edit days, contacts and notes.</p>'+
     '<div class="f"><label for="al_user">Login</label><input id="al_user" value="Admin" autocomplete="username" autocapitalize="off" required></div>'+
@@ -685,8 +687,42 @@ function downloadPage(next){
     render();
   },function(){st.saving=false;st.msg='Could not build the file. Please try again.';st.err=true;render();});
 }
+var GH={owner:'sascbraun',repo:'thewitcher',path:'index.html',branch:'main'};
+function ghToken(){try{return localStorage.getItem('daysheet-gh-token')||'';}catch(e){return '';}}
+function ghApi(method,body){
+  return fetch('https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.path+(method==='GET'?'?ref='+GH.branch:''),{
+    method:method,headers:{'Authorization':'Bearer '+ghToken(),'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},
+    body:body?JSON.stringify(body):undefined,cache:'no-store'});
+}
+function utf8b64(str){var b=new TextEncoder().encode(str),out='',CH=0x8000;for(var i=0;i<b.length;i+=CH)out+=String.fromCharCode.apply(null,b.subarray(i,i+CH));return btoa(out);}
+function ghError(r){
+  if(!r)return 'Could not reach GitHub. Check the connection and try again.';
+  if(r.status===401||r.status===403)return 'The GitHub key is not valid or cannot write to the website. Check it under Website settings.';
+  if(r.status===404)return 'Website repository not found. Check the GitHub key under Website settings.';
+  if(r.status===409||r.status===422)return 'Someone else saved just now. Reload the page and make your change again.';
+  return 'Saving to the website did not work (GitHub '+r.status+'). Please try again.';
+}
+function saveToGitHub(next){
+  st.saving=true;st.msg='';st.err=false;render();
+  var html;
+  buildPage(next).then(function(h){html=h;return ghApi('GET');})
+  .then(function(r){if(!r.ok)throw r;return r.json();})
+  .then(function(cur){return ghApi('PUT',{message:'Update daysheet (admin)',content:utf8b64(html),sha:cur.sha,branch:GH.branch});})
+  .then(function(r){if(!r.ok)throw r;
+    data=norm(JSON.parse(JSON.stringify(next)));st.saving=false;st.edit=null;
+    st.notice='Saved to the website. Everyone sees the change in about a minute (pull down or reload to refresh).';render();})
+  .catch(function(r){st.saving=false;st.msg=ghError(r&&r.status?r:null);st.err=true;render();});
+}
+function ghSettingsView(){
+  var has=!!ghToken();
+  return '<div class="sheet gut" role="dialog" aria-modal="true" aria-label="Website settings"><div class="col login"><form class="card" id="ghform">'+
+    '<h2 class="login-h">Website</h2><p class="desc">Connect this device to the website so Save publishes changes directly to <b>'+GH.owner+'.github.io/'+GH.repo+'</b>. The key is stored only on this device.</p>'+
+    '<div class="f"><label for="gh_tok">GitHub key</label><input id="gh_tok" type="password" autocomplete="off" placeholder="'+(has?'Key saved on this device':'github_pat_…')+'"><span class="hint">Create it on github.com: Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only '+GH.repo+'. Permission: Contents → Read and write.</span></div>'+
+    (st.ghMsg?'<p class="status'+(st.ghErr?' err':'')+'" role="status">'+esc(st.ghMsg)+'</p>':'')+
+    '<div class="btns"><button class="btn primary" type="submit">'+(st.ghBusy?'Checking …':'Save key')+'</button>'+(has?'<button class="btn danger" type="button" data-act="gh-remove">Remove key</button>':'')+'<button class="btn" type="button" data-act="gh-close">Close</button></div></form></div></div>';
+}
 function publish(next,goto){
-  if(!ART&&standalone())return downloadPage(next);
+  if(!ART&&standalone())return ghToken()?saveToGitHub(next):downloadPage(next);
   if(!ART){st.msg='Not saved: saving is not possible in this view. Open the page in Claude with Editor access.';st.err=true;return render();}
   st.saving=true;st.msg='';st.err=false;render();
   ss('daysheet-return',(goto||'')+'|'+(st.edit.type==='tour'?'contacts':'day'));
@@ -710,6 +746,9 @@ app.addEventListener('click',function(ev){
   else if(a==='view'){st.view=b.getAttribute('data-v');render();}
   else if(a==='today')go(todayISO(),'day');
   else if(a==='admin'&&ENC&&!st.isAdmin){st.adminLogin=true;st.loginMsg='';render();var f=document.getElementById('al_pw');if(f)f.focus();}
+  else if(a==='gh-open'){st.ghSettings=true;st.ghMsg='';render();}
+  else if(a==='gh-close'){st.ghSettings=false;render();}
+  else if(a==='gh-remove'){try{localStorage.removeItem('daysheet-gh-token');}catch(e){}st.ghMsg='Key removed from this device.';st.ghErr=false;render();}
   else if(a==='admin-cancel'){st.adminLogin=false;render();}
   else if(a==='admin'){st.admin=!st.admin;try{sessionStorage.setItem('daysheet-admin',st.admin?'1':'');}catch(e){}render();}
   else if(a==='signout')signOut();
@@ -730,6 +769,18 @@ app.addEventListener('click',function(ev){
 function resetEd(){st.msg='';st.err=false;st.confirmDel=false;st.overwriteOk=false;st.saving=false;}
 function selectNear(b){var s=b.parentNode.querySelector('.mono');if(!s)return;var r=document.createRange();r.selectNodeContents(s);var w=getSelection();w.removeAllRanges();w.addRange(r);}
 app.addEventListener('submit',function(ev){
+  if(ev.target.id==='ghform'){
+    ev.preventDefault();var t=document.getElementById('gh_tok').value.trim();
+    if(!t){st.ghMsg='Paste the GitHub key first.';st.ghErr=true;return render();}
+    var old=ghToken();try{localStorage.setItem('daysheet-gh-token',t);}catch(e){st.ghMsg='This browser cannot store the key.';st.ghErr=true;return render();}
+    st.ghBusy=true;st.ghMsg='';render();
+    ghApi('GET').then(function(r){st.ghBusy=false;
+      if(r.ok){st.ghMsg='Connected. Save now publishes to the website.';st.ghErr=false;}
+      else{try{if(old)localStorage.setItem('daysheet-gh-token',old);else localStorage.removeItem('daysheet-gh-token');}catch(e){}st.ghMsg=ghError(r);st.ghErr=true;}
+      render();
+    },function(){st.ghBusy=false;try{if(old)localStorage.setItem('daysheet-gh-token',old);else localStorage.removeItem('daysheet-gh-token');}catch(e){}st.ghMsg=ghError(null);st.ghErr=true;render();});
+    return;
+  }
   if(ev.target.id==='adminform'){
     ev.preventDefault();
     var au=document.getElementById('al_user').value,ap=document.getElementById('al_pw').value;
@@ -750,6 +801,7 @@ app.addEventListener('submit',function(ev){
 });
 app.addEventListener('change',function(ev){if(ev.target.id==='daysel')go(ev.target.value,'day');});
 document.addEventListener('keydown',function(ev){
+  if(st.ghSettings){if(ev.key==='Escape'){st.ghSettings=false;render();}return;}
   if(st.adminLogin){if(ev.key==='Escape'){st.adminLogin=false;render();}return;}
   if(st.edit){if(ev.key==='Escape'&&!st.saving){st.edit=null;render();}return;}
   if(/input|select|textarea/i.test((ev.target.tagName||'')))return;
