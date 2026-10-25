@@ -512,7 +512,7 @@ function docView(){
     '<div class="docv-h"><h3>'+esc(doc.label)+'</h3><button class="btn" type="button" data-act="doc-close">Close</button></div>'+
     (doc.note?'<p class="desc">'+esc(doc.note)+'</p>':'')+
     '<img src="'+src+'" alt="'+esc(doc.label)+'">'+
-    '<div class="btns"><a class="btn primary" href="'+src+'" download="'+esc(doc.file||'document.jpg')+'">Save image</a><button class="btn" type="button" data-act="doc-close">Close</button></div></div></div>';
+    '<div class="btns">'+(ART?'':'<a class="btn primary" href="'+src+'" download="'+esc(doc.file||'document.jpg')+'">Save image</a>')+'<button class="btn" type="button" data-act="doc-close">Close</button></div></div></div>';
 }
 function addrBlock(a){
   if(!a)return '';
