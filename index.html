@@ -155,6 +155,9 @@ main .col{display:grid;gap:14px;padding-block:16px 40px}
 .chg{max-height:26vh;overflow-y:auto;margin-top:8px;padding:8px 12px;border:1px solid var(--warn);border-left-width:4px;border-radius:10px;background:color-mix(in srgb,var(--warn) 9%,var(--card));color:var(--warn);font-size:13px}
 .chg-h{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase}
 .chg-d{margin-top:4px}
+.chg-wa{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;padding-top:8px;border-top:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+.chg-wa .wa{font-size:13px;padding:5px 12px}
+.chg-wa span{color:var(--muted);font-size:12px}
 .chg-day{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--warn);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .chg ul{margin:2px 0 0;padding-left:18px}
 .chg li{margin:1px 0}
@@ -393,7 +396,7 @@ function header(){
       (hasToday?'<button type="button" class="today" data-act="today">Today</button>':'')+
     '</nav></div></header>';
 }
-var CHANGE_WINDOW=48*3600*1000;
+var CHANGE_WINDOW=48*3600*1000,SITE_URL='https://sascbraun.github.io/thewitcher/';
 function changesBanner(){
   var t=todayISO(),tm=addDays(t,1),now=Date.now();
   var list=(data.changes||[]).filter(function(c){return (c.date===t||c.date===tm)&&now-Date.parse(c.at)<CHANGE_WINDOW&&c.items&&c.items.length;});
@@ -405,6 +408,10 @@ function changesBanner(){
     h+='<div class="chg-d"><button type="button" class="chg-day" data-act="goday" data-v="'+dt+'">'+(dt===t?'Today':'Tomorrow')+' · '+esc(fmtShort(dt))+(dayBy(dt)?' · '+esc(dayBy(dt).city):'')+'</button><ul>'+
       items.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
   });
+  if(st.admin){
+    var msg='Attention! Change in the App, please check\n'+SITE_URL;
+    h+='<div class="chg-wa"><a class="wa" href="https://wa.me/?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener">Send WhatsApp to everyone</a><span>Opens WhatsApp with the message. Choose the tour group and send.</span></div>';
+  }
   return h+'</div>';
 }
 function dayChanges(o,n){
