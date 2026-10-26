@@ -244,7 +244,7 @@ legend{font-family:var(--display);font-weight:700;letter-spacing:.1em;text-trans
 
 <div id="app"><p class="gut" style="padding-block:24px">Loading daysheet …</p></div>
 
-<script type="application/json" id="tour">{"enc": {"v": 1, "iter": 200000, "salt": "P5G2YA3x/3kfGDNvEA4nfA==", "iv": "am6RH5r6mj2A7Mgr", "ct": "g1p8QTZkcS1DHxva2ENRg+6eqkendX1jm4WAkQhiXMGzXuQx9OJC5Ot9NUVUQf5XuZn3W4FykN46StYSWRoEOLT5qt5gtbYVoRM+ZXwbfMSjJuXlx1zbIgqnXFmZplsXwuWjJYjxjMS7VwuQf1RhK7j9PC8nciXNwMHRw4x1AdYH+hASBj2umreFwPzK31+cDgne2l3ytjD/SphX+nhhyTuzQ+3KyZ441LeOWBuDujSkoLrCg75tubs5sHAL4yeaBlJ1c/E8Hg==", "admin": {"salt": "ZKGn9XWxgJFhjoN48F+DvQ==", "iv": "M5T6mSdLgQAPnJmD", "ct": "h8sSx8Ot0SlZjOrx1Fv0FVf2ZZR7cRK5hqEwxJr6qDGNo2orfSdS2lZS24XJLtGv"}}}</script>
+<script type="application/json" id="tour">{"enc": {"v": 1, "iter": 200000, "salt": "DXL3OoraYQTy+dknRJc2Nw==", "iv": "jQIEBDCkhwOl5CBm", "ct": "g6xRulJVY4nQXMTrUdbHnHtR4UtlUMSrzG6QpYGjcCGwbJufXDlzBOSR0bc6FsjEOclxMFZXQlGQbBvGfpzh/vYvBRotZe/uP/VU4MQA723dLNSl7cJQAv903hFxzS7OU7d1YlHvY9kjzltYN4H5+lRucl8FphaGfC9xUXdjlvApgLbzBOpt6RGOq3pguzJORGOLJ0q/4JeSemGUCh3XkSB+jwylkBZfGr+9+8bVQ0Zz2So4J+VbJj/wwnc85jsOYTWKf7yH7Q==", "admin": {"salt": "x6PJUvqa4uv42HcQ/4vnmQ==", "iv": "SZll7kOc8V0I+BH6", "ct": "FsIAEh6ESAwxtzY5Cp/1ENOXuXxAp0PUyFoC4qOiPrGDr8f6jOaFKvDM4Mh5ZlWD"}}}</script>
 
 <script id="appjs">
 (function(){
@@ -347,7 +347,7 @@ function tryRemembered(){
 function signOut(){try{localStorage.removeItem('daysheet-key-'+ENC.salt);localStorage.removeItem('daysheet-role-'+ENC.salt);}catch(e){}KEY=null;st.isAdmin=false;st.admin=false;data=load();st.edit=null;render();}
 function loginView(){
   return '<main class="gut"><div class="col login"><form class="card" id="loginform" autocomplete="on">'+
-    '<h2 class="login-h">Witcher III in Concert</h2><p class="desc">Daysheet for band &amp; crew. Please sign in.</p>'+
+    '<h2 class="login-h">Tour Daysheet</h2><p class="desc">Daysheet for band &amp; crew. Please sign in.</p>'+
     '<div class="f"><label for="lg_user">Login</label><input id="lg_user" name="username" autocomplete="username" autocapitalize="off" required></div>'+
     '<div class="f"><label for="lg_pw">Password</label><input id="lg_pw" name="password" type="password" autocomplete="current-password" required></div>'+
     '<label class="remember"><input type="checkbox" id="lg_rem" checked> Remember me on this device</label>'+
@@ -1079,7 +1079,7 @@ app.addEventListener('submit',function(ev){
   if(ev.target.id==='adminform'){
     ev.preventDefault();
     var au=document.getElementById('al_user').value,ap=document.getElementById('al_pw').value;
-    if(String(au).trim().toLowerCase()!=='admin'||!ENC.admin){st.loginMsg='Wrong admin login or password.';return render();}
+    if(!ENC.admin){st.loginMsg='Wrong admin login or password.';return render();}
     adminKey(au,ap).then(function(){
       st.isAdmin=true;st.admin=true;st.adminLogin=false;st.loginMsg='';
       try{sessionStorage.setItem('daysheet-admin','1');if(localStorage.getItem('daysheet-key-'+ENC.salt))localStorage.setItem('daysheet-role-'+ENC.salt,'admin');}catch(e){}
@@ -1091,8 +1091,8 @@ app.addEventListener('submit',function(ev){
   var u=document.getElementById('lg_user').value,pw=document.getElementById('lg_pw').value,rem=document.getElementById('lg_rem').checked;
   if(!window.crypto||!crypto.subtle){st.loginMsg='This browser cannot open the daysheet. Please try another browser.';return render();}
   st.loggingIn=true;st.loginMsg='';render();
-  var isAdm=String(u).trim().toLowerCase()==='admin'&&ENC.admin;
-  (isAdm?adminKey(u,pw):deriveKey(u,pw)).then(function(k){return unlock(k,rem,!!isAdm);}).catch(function(){st.loggingIn=false;st.loginMsg='Wrong login or password.';render();var f=document.getElementById('lg_user');if(f)f.value=u;});
+  var isAdm=false;
+  (ENC.admin?adminKey(u,pw).then(function(k){isAdm=true;return k;},function(){return deriveKey(u,pw);}):deriveKey(u,pw)).then(function(k){return unlock(k,rem,!!isAdm);}).catch(function(){st.loggingIn=false;st.loginMsg='Wrong login or password.';render();var f=document.getElementById('lg_user');if(f)f.value=u;});
 });
 app.addEventListener('change',function(ev){if(ev.target.id==='daysel')go(ev.target.value,'day');});
 document.addEventListener('keydown',function(ev){
