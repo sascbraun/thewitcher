@@ -1,6 +1,3 @@
-# Witcher III in Concert – Daysheet
+# Band Daysheet
 
-Daily schedule app for band & crew (EU/UK 2026).
-The tour data in `index.html` is encrypted; open the site and sign in.
-
-Live: https://sascbraun.github.io/thewitcher/
+Encrypted tour daysheet app (band and admin logins). The tour data is empty, ready for the next tour: sign in as admin and use "Add the first day".
